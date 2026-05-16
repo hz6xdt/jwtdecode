@@ -58,4 +58,4 @@ If the token is malformed or invalid, a clear error message will appear above th
 4. Open your browser to `http://localhost:5000` (or the port specified in the console).
 
 ---
-*Built with ❤️ for developers.*
+*Built with ❤️ for developers by Gemini.*
