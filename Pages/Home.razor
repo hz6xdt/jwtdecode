@@ -1,0 +1,146 @@
+﻿@page "/"
+@using System.Text.Json
+@using System.Text
+@using jwtdecode.Components
+@implements IDisposable
+
+<PageTitle>JWT Decoder</PageTitle>
+
+<div class="container mt-4">
+    <div class="card shadow-lg bg-dark text-light border-secondary">
+        <div class="card-header border-secondary bg-black text-white py-3">
+            <h3 class="mb-0 fw-bold"><span class="text-primary">{</span> JWT <span class="text-primary">}</span> Decoder</h3>
+        </div>
+        <div class="card-body p-4">
+            <div class="mb-4">
+                <label for="jwtInput" class="form-label fw-bold text-secondary text-uppercase small mb-2">Encoded Token</label>
+                <textarea id="jwtInput" 
+                          class="form-control bg-black text-info border-secondary font-monospace" 
+                          rows="5" 
+                          placeholder="Paste your JWT here..." 
+                          @bind="JwtInput" 
+                          @bind:event="oninput"
+                          style="resize: none;"></textarea>
+            </div>
+
+            @if (!string.IsNullOrEmpty(ErrorMessage))
+            {
+                <div class="alert alert-danger bg-danger-subtle border-danger text-danger-emphasis" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> @ErrorMessage
+                </div>
+            }
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-secondary text-uppercase small mb-2">Header</label>
+                    <div class="p-3 bg-black border border-secondary rounded overflow-auto custom-scrollbar" style="height: 450px;">
+                        @if (HeaderElement.HasValue)
+                        {
+                            <JsonViewer Element="HeaderElement.Value" />
+                        }
+                        else if (string.IsNullOrEmpty(ErrorMessage) && !string.IsNullOrEmpty(JwtInput))
+                        {
+                            <span class="text-muted italic small">Waiting for valid input...</span>
+                        }
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold text-secondary text-uppercase small mb-2">Payload</label>
+                    <div class="p-3 bg-black border border-secondary rounded overflow-auto custom-scrollbar" style="height: 450px;">
+                        @if (PayloadElement.HasValue)
+                        {
+                            <JsonViewer Element="PayloadElement.Value" />
+                        }
+                        else if (string.IsNullOrEmpty(ErrorMessage) && !string.IsNullOrEmpty(JwtInput))
+                        {
+                            <span class="text-muted italic small">Waiting for valid input...</span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _jwtInput = string.Empty;
+    private string JwtInput
+    {
+        get => _jwtInput;
+        set
+        {
+            if (_jwtInput != value)
+            {
+                _jwtInput = value;
+                DecodeJwt();
+            }
+        }
+    }
+
+    private JsonDocument? _headerDoc;
+    private JsonDocument? _payloadDoc;
+    private JsonElement? HeaderElement => _headerDoc?.RootElement;
+    private JsonElement? PayloadElement => _payloadDoc?.RootElement;
+
+    private string ErrorMessage { get; set; } = string.Empty;
+
+    private void DecodeJwt()
+    {
+        ErrorMessage = string.Empty;
+        
+        _headerDoc?.Dispose();
+        _payloadDoc?.Dispose();
+        _headerDoc = null;
+        _payloadDoc = null;
+
+        if (string.IsNullOrWhiteSpace(JwtInput))
+        {
+            return;
+        }
+
+        var parts = JwtInput.Split('.');
+        if (parts.Length < 2)
+        {
+            ErrorMessage = "Invalid JWT format. A JWT should have at least two parts (Header and Payload) separated by dots.";
+            return;
+        }
+
+        try
+        {
+            _headerDoc = DecodePart(parts[0]);
+            _payloadDoc = DecodePart(parts[1]);
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error decoding JWT: {ex.Message}";
+        }
+    }
+
+    private JsonDocument? DecodePart(string base64Url)
+    {
+        try
+        {
+            string base64 = base64Url.Replace('-', '+').Replace('_', '/');
+            switch (base64.Length % 4)
+            {
+                case 2: base64 += "=="; break;
+                case 3: base64 += "="; break;
+            }
+
+            byte[] bytes = Convert.FromBase64String(base64);
+            string json = Encoding.UTF8.GetString(bytes);
+            
+            return JsonDocument.Parse(json);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    public void Dispose()
+    {
+        _headerDoc?.Dispose();
+        _payloadDoc?.Dispose();
+    }
+}

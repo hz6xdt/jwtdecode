@@ -1,0 +1,103 @@
+@using System.Text.Json
+
+<div class="json-node">
+    @if (Element.ValueKind == JsonValueKind.Object)
+    {
+        <span class="json-toggle" @onclick="Toggle">
+            @if (isExpanded)
+            {
+                <span class="chevron">▼</span>
+            }
+            else
+            {
+                <span class="chevron">▶</span>
+            }
+        </span>
+        <span class="json-brace">{</span>
+        @if (isExpanded)
+        {
+            <div class="json-children ps-3">
+                @{
+                    var properties = Element.EnumerateObject().ToList();
+                    for (int i = 0; i < properties.Count; i++)
+                    {
+                        var property = properties[i];
+                        <div class="json-property">
+                            <span class="json-key">"@property.Name"</span>: 
+                            <JsonViewer Element="property.Value" IsLast="@(i == properties.Count - 1)" />
+                        </div>
+                    }
+                }
+            </div>
+            <span class="json-brace">}</span>
+        }
+        else
+        {
+            <span class="json-placeholder" @onclick="Toggle">{ ... }</span>
+        }
+        @if (!IsLast) { <span class="json-comma">,</span> }
+    }
+    else if (Element.ValueKind == JsonValueKind.Array)
+    {
+        <span class="json-toggle" @onclick="Toggle">
+            @if (isExpanded)
+            {
+                <span class="chevron">▼</span>
+            }
+            else
+            {
+                <span class="chevron">▶</span>
+            }
+        </span>
+        <span class="json-bracket">[</span>
+        @if (isExpanded)
+        {
+            <div class="json-children ps-3">
+                @{
+                    var items = Element.EnumerateArray().ToList();
+                    for (int i = 0; i < items.Count; i++)
+                    {
+                        <div class="json-item">
+                            <JsonViewer Element="items[i]" IsLast="@(i == items.Count - 1)" />
+                        </div>
+                    }
+                }
+            </div>
+            <span class="json-bracket">]</span>
+        }
+        else
+        {
+            <span class="json-placeholder" @onclick="Toggle">[ ... ]</span>
+        }
+        @if (!IsLast) { <span class="json-comma">,</span> }
+    }
+    else
+    {
+        <span class="json-value @GetValueClass()">@FormatValue()</span>
+        @if (!IsLast) { <span class="json-comma">,</span> }
+    }
+</div>
+
+@code {
+    [Parameter] public JsonElement Element { get; set; }
+    [Parameter] public bool IsLast { get; set; } = true;
+
+    private bool isExpanded = true;
+
+    private void Toggle() => isExpanded = !isExpanded;
+
+    private string GetValueClass() => Element.ValueKind switch
+    {
+        JsonValueKind.String => "json-string",
+        JsonValueKind.Number => "json-number",
+        JsonValueKind.True or JsonValueKind.False => "json-boolean",
+        JsonValueKind.Null => "json-null",
+        _ => ""
+    };
+
+    private string FormatValue() => Element.ValueKind switch
+    {
+        JsonValueKind.String => $"\"{Element.GetString()}\"",
+        _ => Element.GetRawText()
+    };
+}
